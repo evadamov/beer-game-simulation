@@ -88,7 +88,7 @@ if (process.env.NODE_ENV === 'production') {
     const buildPath = path.join(__dirname, '../dist');
     app.use(express.static(buildPath));
 
-    app.get('*', (req, res) => {
+    app.use((req, res) => {
         res.sendFile(path.join(buildPath, 'index.html'));
     });
 }
