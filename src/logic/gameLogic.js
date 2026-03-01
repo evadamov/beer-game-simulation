@@ -37,6 +37,9 @@ const createInitialNodeState = () => ({
     inventory: CONFIG.initial_inventory,
     backlog: 0,
     cost: 0,
+    cumulativeHoldingCost: 0,
+    cumulativeBacklogCost: 0,
+    actionLog: [],
     lastOrderReceived: 0, // Visual only
     lastShipmentReceived: 0 // Visual only
 });
@@ -115,12 +118,23 @@ export const processRound = (state, playerActions) => {
     // Factory ordering is production
     state.pipeline.productionQueue.push({ arrivalWeek: state.week + CONFIG.production_delay, amount: factAction.order });
 
-    // 3. Calculate Costs
+    // 3. Calculate Costs & Log Actions
     [ROLES.RETAILER, ROLES.DISTRIBUTOR, ROLES.FACTORY].forEach(role => {
         const node = state.nodes[role];
         const holding = node.inventory * CONFIG.holding_cost;
         const backlogCost = node.backlog * CONFIG.backlog_cost;
         node.cost += (holding + backlogCost);
+        node.cumulativeHoldingCost += holding;
+        node.cumulativeBacklogCost += backlogCost;
+
+        const action = playerActions[role];
+        if (action) {
+            node.actionLog.unshift({
+                week: state.week,
+                shipped: action.ship,
+                ordered: action.order
+            });
+        }
     });
 
     // Save history

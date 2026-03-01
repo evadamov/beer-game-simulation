@@ -38,6 +38,16 @@ io.on('connection', (socket) => {
 
         const room = rooms[roomId];
 
+        if (room.state.players[role]) {
+            const existingSocketId = room.state.players[role];
+            // Get all currently connected sockets
+            const connectedSockets = Array.from(io.sockets.sockets.keys());
+            if (connectedSockets.includes(existingSocketId) && existingSocketId !== socket.id) {
+                if (callback) callback({ success: false, message: 'Данная роль уже занята активным игроком.' });
+                return;
+            }
+        }
+
         room.state.players[role] = socket.id;
         socket.join(roomId);
 
@@ -60,7 +70,11 @@ io.on('connection', (socket) => {
         const room = rooms[roomId];
         if (!room || room.state.status !== 'playing') return;
 
+        if (!room.state.submitted) room.state.submitted = [];
         room.turnActions[role] = action;
+        if (!room.state.submitted.includes(role)) {
+            room.state.submitted.push(role);
+        }
 
         const requiredRoles = [ROLES.RETAILER, ROLES.DISTRIBUTOR, ROLES.FACTORY];
         const allSubmitted = requiredRoles.every(r => room.turnActions[r]);
@@ -69,12 +83,14 @@ io.on('connection', (socket) => {
             try {
                 room.state = processRound(room.state, room.turnActions);
                 room.turnActions = {};
+                room.state.submitted = [];
                 io.to(roomId).emit('state_update', room.state);
             } catch (err) {
                 console.error("Error processing round", err);
             }
         } else {
-            io.to(roomId).emit('player_submitted', role);
+            // Send full state update so frontend can show who is waiting
+            io.to(roomId).emit('state_update', room.state);
         }
     });
 

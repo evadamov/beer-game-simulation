@@ -36,6 +36,13 @@ function App() {
       console.error(err);
     });
 
+    // Auto-reconnect flow
+    const savedRoom = localStorage.getItem('beerGameRoom');
+    const savedRole = localStorage.getItem('beerGameRole');
+    if (savedRoom && savedRole && !socket.connected) {
+      handleJoinRoom(savedRoom, savedRole);
+    }
+
     return () => {
       socket.off('connect');
       socket.off('disconnect');
@@ -54,8 +61,23 @@ function App() {
         setRoomId(room);
         setCurrentRole(role);
         setGameState(response.state);
+        localStorage.setItem('beerGameRoom', room);
+        localStorage.setItem('beerGameRole', role);
+        setConnectionError('');
+      } else {
+        setConnectionError(response.message || 'Не удалось присоединиться. Роль уже занята активным игроком.');
+        localStorage.removeItem('beerGameRoom');
+        localStorage.removeItem('beerGameRole');
       }
     });
+  };
+
+  const handleLeaveGame = () => {
+    localStorage.removeItem('beerGameRoom');
+    localStorage.removeItem('beerGameRole');
+    setGameState(null);
+    setCurrentRole(null);
+    setRoomId(null);
   };
 
   const handleStartGame = () => {
@@ -70,12 +92,17 @@ function App() {
     <div className="min-h-screen text-slate-100 font-sans">
 
       {/* Top Banner */}
-      <div className="bg-slate-900 border-b border-slate-800 p-2 text-center text-xs text-slate-400 flex justify-between px-4">
+      <div className="bg-slate-900 border-b border-slate-800 p-2 text-center text-xs text-slate-400 flex justify-between items-center px-4">
         <span>MIT Beer Game Simulation</span>
         <div className="flex items-center space-x-2">
           <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-accentSuccess' : 'bg-accentDanger'}`}></span>
-          <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
-          {roomId && <span className="ml-4 font-mono">Room: <span className="text-white bg-slate-800 px-2 py-1 rounded">{roomId}</span></span>}
+          <span>{isConnected ? 'Подключен' : 'Отключен'}</span>
+          {roomId && (
+            <>
+              <span className="ml-4 font-mono">Комната: <span className="text-white bg-slate-800 px-2 py-1 rounded">{roomId}</span></span>
+              <button onClick={handleLeaveGame} className="ml-4 text-accentDanger hover:text-red-400 underline decoration-dotted">Покинуть игру</button>
+            </>
+          )}
         </div>
       </div>
 
