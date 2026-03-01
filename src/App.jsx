@@ -5,12 +5,13 @@ import Dashboard from './components/Dashboard';
 import HostDashboard from './components/HostDashboard';
 import { ROLES } from './config';
 
-// Determine socket URL based on environment
-// In production (when served from same origin), we just use window.location.origin via fallback
-const SOCKET_URL = import.meta.env.VITE_SERVER_URL || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : window.location.origin);
+// In development, Vite runs on a different port than the Express API.
+// In production, they are on the same port/origin.
+// By default, if we don't pass an origin string, socket.io-client tries to connect to window.location.
+const socketUrl = import.meta.env.DEV ? 'http://localhost:3001' : '';
 
 // Create socket instance outside component to prevent recreation
-const socket = io(SOCKET_URL, {
+const socket = io(socketUrl, {
   autoConnect: false // We connect manually when picking a room
 });
 
