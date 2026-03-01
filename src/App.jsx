@@ -6,7 +6,7 @@ import HostDashboard from './components/HostDashboard';
 import { ROLES } from './config';
 
 // Determine socket URL based on environment
-const SOCKET_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
+const SOCKET_URL = import.meta.env.VITE_SERVER_URL || (import.meta.env.PROD ? window.location.origin : 'http://localhost:3001');
 
 // Create socket instance outside component to prevent recreation
 const socket = io(SOCKET_URL, {
