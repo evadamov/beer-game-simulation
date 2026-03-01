@@ -34,10 +34,8 @@ export default function Dashboard({ role, state, onSubmitTurn }) {
         );
     }
 
-    // Calculate perceived demand
-    const currentDemand = role === ROLES.RETAILER
-        ? (state.week <= 4 ? CONFIG.customer_order_range[0] : (CONFIG.customer_order_range[1] || CONFIG.customer_order_range[0] * 2))
-        : nodeState.lastOrderReceived;
+    // Read Demand from state
+    const currentDemand = nodeState.lastOrderReceived;
 
     const totalDemand = currentDemand + nodeState.backlog;
     const maxShip = Math.min(nodeState.inventory, totalDemand);

@@ -30,12 +30,12 @@ export default function HostDashboard({ state, onStartGame }) {
                     let statusBadge = null;
                     if (!playerId) {
                         statusBadge = <span className="text-xs px-2 py-1 rounded-full bg-slate-600 text-slate-300">Ожидание игрока...</span>;
-                    } else if (!isPlaying) {
-                        statusBadge = <span className="text-xs px-2 py-1 rounded-full bg-accentSuccess/20 text-accentSuccess">Подключен</span>;
                     } else if (isSubmitted) {
                         statusBadge = <span className="text-xs px-2 py-1 rounded-full bg-brandPrimary/20 text-brandPrimary">Ход сделан</span>;
-                    } else {
+                    } else if (isPlaying) {
                         statusBadge = <span className="text-xs px-2 py-1 rounded-full bg-accentWarning/20 text-accentWarning animate-pulse">Думает... (Ожидание хода)</span>;
+                    } else {
+                        statusBadge = <span className="text-xs px-2 py-1 rounded-full bg-accentSuccess/20 text-accentSuccess">Подключен</span>;
                     }
 
                     return (

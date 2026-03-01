@@ -19,16 +19,31 @@ export const createInitialState = () => ({
         [ROLES.FACTORY]: createInitialNodeState()
     },
     pipeline: {
-        // Items moving between nodes
-        shipmentsToRetailer: [], // { arrivalWeek: X, amount: Y }
-        shipmentsToDistributor: [],
+        // Items moving between nodes (delay = 2)
+        shipmentsToRetailer: [
+            { arrivalWeek: 2, amount: CONFIG.customer_order_range[0] },
+            { arrivalWeek: 3, amount: CONFIG.customer_order_range[0] }
+        ],
+        shipmentsToDistributor: [
+            { arrivalWeek: 2, amount: CONFIG.customer_order_range[0] },
+            { arrivalWeek: 3, amount: CONFIG.customer_order_range[0] }
+        ],
 
-        // Orders moving between nodes
-        ordersToDistributor: [],
-        ordersToFactory: [],
+        // Orders moving between nodes (delay = 2)
+        ordersToDistributor: [
+            { arrivalWeek: 2, amount: CONFIG.customer_order_range[0] },
+            { arrivalWeek: 3, amount: CONFIG.customer_order_range[0] }
+        ],
+        ordersToFactory: [
+            { arrivalWeek: 2, amount: CONFIG.customer_order_range[0] },
+            { arrivalWeek: 3, amount: CONFIG.customer_order_range[0] }
+        ],
 
-        // Factory Production Queue
-        productionQueue: []
+        // Factory Production Queue (delay = 2)
+        productionQueue: [
+            { arrivalWeek: 2, amount: CONFIG.customer_order_range[0] },
+            { arrivalWeek: 3, amount: CONFIG.customer_order_range[0] }
+        ]
     },
     history: [] // Array of { week, node: { ... } } for analytics
 });
@@ -40,8 +55,8 @@ const createInitialNodeState = () => ({
     cumulativeHoldingCost: 0,
     cumulativeBacklogCost: 0,
     actionLog: [],
-    lastOrderReceived: 0, // Visual only
-    lastShipmentReceived: 0 // Visual only
+    lastOrderReceived: CONFIG.customer_order_range[0], // Visual only
+    lastShipmentReceived: CONFIG.customer_order_range[0] // Visual only
 });
 
 export const getCustomerOrder = (week) => {
@@ -54,39 +69,9 @@ export const getCustomerOrder = (week) => {
 export const processRound = (state, playerActions) => {
     // playerActions = { Retailer: { ship: 5, order: 5 }, Distributor: {...}, Factory: {...} }
 
-    const nextWeek = state.week + 1;
     const customerOrder = getCustomerOrder(state.week);
 
-    // 1. Receive Arrivals for Next Week (Shipments & Orders arriving at start of nextWeek)
-
-    // Pipeline Helper Functions
-    const getArriving = (queue, week) => queue.filter(item => item.arrivalWeek === week).reduce((sum, item) => sum + item.amount, 0);
-
-    const arrivingAtRetailer = getArriving(state.pipeline.shipmentsToRetailer, nextWeek);
-    const arrivingAtDistributor = getArriving(state.pipeline.shipmentsToDistributor, nextWeek);
-    const arrivingAtFactory = getArriving(state.pipeline.productionQueue, nextWeek); // Finished brewing
-
-    const incomingOrderToDistributor = getArriving(state.pipeline.ordersToDistributor, nextWeek);
-    const incomingOrderToFactory = getArriving(state.pipeline.ordersToFactory, nextWeek);
-
-    // Update Inventory with Arrivals
-    state.nodes[ROLES.RETAILER].inventory += arrivingAtRetailer;
-    state.nodes[ROLES.RETAILER].lastShipmentReceived = arrivingAtRetailer;
-
-    state.nodes[ROLES.DISTRIBUTOR].inventory += arrivingAtDistributor;
-    state.nodes[ROLES.DISTRIBUTOR].lastShipmentReceived = arrivingAtDistributor;
-
-    state.nodes[ROLES.FACTORY].inventory += arrivingAtFactory;
-    state.nodes[ROLES.FACTORY].lastShipmentReceived = arrivingAtFactory; // "From brewing"
-
-    // Update incoming orders view
-    state.nodes[ROLES.RETAILER].lastOrderReceived = customerOrder; // Instant
-    state.nodes[ROLES.DISTRIBUTOR].lastOrderReceived = incomingOrderToDistributor;
-    state.nodes[ROLES.FACTORY].lastOrderReceived = incomingOrderToFactory;
-
-
-    // 2. Process Actions (Shipping & Ordering placed at end of current week)
-
+    // 1. Process Actions (Shipping & Ordering placed at end of current week)
     // RETAILER
     const retAction = playerActions[ROLES.RETAILER];
     const retDemand = customerOrder + state.nodes[ROLES.RETAILER].backlog;
@@ -94,31 +79,28 @@ export const processRound = (state, playerActions) => {
     state.nodes[ROLES.RETAILER].inventory -= retShipped;
     state.nodes[ROLES.RETAILER].backlog = retDemand - retShipped;
     // Retailer shipments leave system (go to customer)
-
-    state.pipeline.ordersToDistributor.push({ arrivalWeek: state.week + CONFIG.order_delay, amount: retAction.order });
+    state.pipeline.ordersToDistributor.push({ arrivalWeek: state.week + 1 + CONFIG.order_delay, amount: retAction.order });
 
     // DISTRIBUTOR
     const distAction = playerActions[ROLES.DISTRIBUTOR];
-    const distDemandToUse = (state.week === 1) ? 4 /* Initial seed */ + state.nodes[ROLES.DISTRIBUTOR].backlog : state.nodes[ROLES.DISTRIBUTOR].lastOrderReceived + state.nodes[ROLES.DISTRIBUTOR].backlog;
+    const distDemandToUse = state.nodes[ROLES.DISTRIBUTOR].lastOrderReceived + state.nodes[ROLES.DISTRIBUTOR].backlog;
     const distShipped = Math.min(distAction.ship, state.nodes[ROLES.DISTRIBUTOR].inventory, distDemandToUse);
     state.nodes[ROLES.DISTRIBUTOR].inventory -= distShipped;
     state.nodes[ROLES.DISTRIBUTOR].backlog = distDemandToUse - distShipped;
-
-    state.pipeline.shipmentsToRetailer.push({ arrivalWeek: state.week + CONFIG.shipping_delay, amount: distShipped });
-    state.pipeline.ordersToFactory.push({ arrivalWeek: state.week + CONFIG.order_delay, amount: distAction.order });
+    state.pipeline.shipmentsToRetailer.push({ arrivalWeek: state.week + 1 + CONFIG.shipping_delay, amount: distShipped });
+    state.pipeline.ordersToFactory.push({ arrivalWeek: state.week + 1 + CONFIG.order_delay, amount: distAction.order });
 
     // FACTORY
     const factAction = playerActions[ROLES.FACTORY];
-    const factDemandToUse = (state.week === 1) ? 4 /* Initial seed */ + state.nodes[ROLES.FACTORY].backlog : state.nodes[ROLES.FACTORY].lastOrderReceived + state.nodes[ROLES.FACTORY].backlog;
+    const factDemandToUse = state.nodes[ROLES.FACTORY].lastOrderReceived + state.nodes[ROLES.FACTORY].backlog;
     const factShipped = Math.min(factAction.ship, state.nodes[ROLES.FACTORY].inventory, factDemandToUse);
     state.nodes[ROLES.FACTORY].inventory -= factShipped;
     state.nodes[ROLES.FACTORY].backlog = factDemandToUse - factShipped;
-
-    state.pipeline.shipmentsToDistributor.push({ arrivalWeek: state.week + CONFIG.shipping_delay, amount: factShipped });
+    state.pipeline.shipmentsToDistributor.push({ arrivalWeek: state.week + 1 + CONFIG.shipping_delay, amount: factShipped });
     // Factory ordering is production
-    state.pipeline.productionQueue.push({ arrivalWeek: state.week + CONFIG.production_delay, amount: factAction.order });
+    state.pipeline.productionQueue.push({ arrivalWeek: state.week + 1 + CONFIG.production_delay, amount: factAction.order });
 
-    // 3. Calculate Costs & Log Actions
+    // 2. Calculate Costs & Log Actions for Current Week
     [ROLES.RETAILER, ROLES.DISTRIBUTOR, ROLES.FACTORY].forEach(role => {
         const node = state.nodes[role];
         const holding = node.inventory * CONFIG.holding_cost;
@@ -142,6 +124,36 @@ export const processRound = (state, playerActions) => {
         week: state.week,
         nodes: JSON.parse(JSON.stringify(state.nodes))
     });
+
+    // 3. Advance to next week
+    const nextWeek = state.week + 1;
+
+    // 4. Receive Arrivals for Next Week (Shipments & Orders arriving at start of nextWeek)
+
+    // Pipeline Helper Functions
+    const getArriving = (queue, week) => queue.filter(item => item.arrivalWeek === week).reduce((sum, item) => sum + item.amount, 0);
+
+    const arrivingAtRetailer = getArriving(state.pipeline.shipmentsToRetailer, nextWeek);
+    const arrivingAtDistributor = getArriving(state.pipeline.shipmentsToDistributor, nextWeek);
+    const arrivingAtFactory = getArriving(state.pipeline.productionQueue, nextWeek); // Finished brewing
+
+    const incomingOrderToDistributor = getArriving(state.pipeline.ordersToDistributor, nextWeek);
+    const incomingOrderToFactory = getArriving(state.pipeline.ordersToFactory, nextWeek);
+
+    // Update Inventory with Arrivals
+    state.nodes[ROLES.RETAILER].inventory += arrivingAtRetailer;
+    state.nodes[ROLES.RETAILER].lastShipmentReceived = arrivingAtRetailer;
+
+    state.nodes[ROLES.DISTRIBUTOR].inventory += arrivingAtDistributor;
+    state.nodes[ROLES.DISTRIBUTOR].lastShipmentReceived = arrivingAtDistributor;
+
+    state.nodes[ROLES.FACTORY].inventory += arrivingAtFactory;
+    state.nodes[ROLES.FACTORY].lastShipmentReceived = arrivingAtFactory; // "From brewing"
+
+    // Update incoming orders view
+    state.nodes[ROLES.RETAILER].lastOrderReceived = getCustomerOrder(nextWeek); // Identify instant demand for UI for next week
+    state.nodes[ROLES.DISTRIBUTOR].lastOrderReceived = incomingOrderToDistributor;
+    state.nodes[ROLES.FACTORY].lastOrderReceived = incomingOrderToFactory;
 
     state.week = nextWeek;
 
