@@ -1,9 +1,46 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { CONFIG, ROLES } from '../config.js';
-
+import {
+    LineChart,
+    Line,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    Legend,
+    ResponsiveContainer
+} from 'recharts';
 export default function HostDashboard({ state, onStartGame }) {
 
     const isPlaying = state.status === 'playing';
+
+    // Prepare Analytics Data from History
+    const chartData = useMemo(() => {
+        return state.history.map(record => ({
+            week: record.week,
+            'Магазин': record.nodes[ROLES.RETAILER]?.inventory || 0,
+            'Дистрибьютор': record.nodes[ROLES.DISTRIBUTOR]?.inventory || 0,
+            'Завод': record.nodes[ROLES.FACTORY]?.inventory || 0,
+        }));
+    }, [state.history]);
+
+    const chartDataDemand = useMemo(() => {
+        return state.history.map(record => ({
+            week: record.week,
+            'Магазин': record.nodes[ROLES.RETAILER]?.lastOrderReceived || 0,
+            'Дистрибьютор': record.nodes[ROLES.DISTRIBUTOR]?.lastOrderReceived || 0,
+            'Завод': record.nodes[ROLES.FACTORY]?.lastOrderReceived || 0,
+        }));
+    }, [state.history]);
+
+    const chartDataCosts = useMemo(() => {
+        return state.history.map(record => ({
+            week: record.week,
+            'Магазин': record.nodes[ROLES.RETAILER]?.cost || 0,
+            'Дистрибьютор': record.nodes[ROLES.DISTRIBUTOR]?.cost || 0,
+            'Завод': record.nodes[ROLES.FACTORY]?.cost || 0,
+        }));
+    }, [state.history]);
 
     return (
         <div className="flex flex-col min-h-screen p-6 max-w-7xl mx-auto w-full fade-in">
@@ -77,9 +114,9 @@ export default function HostDashboard({ state, onStartGame }) {
                 })}
 
                 {/* Global Pipeline / Stats */}
-                <div className="col-span-1 lg:col-span-3 mt-6">
+                <div className="col-span-1 lg:col-span-3 mt-4">
                     <h3 className="text-xl font-semibold text-white mb-4 border-b border-slate-700 pb-2">Статистика Цепи Поставок</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                         <div className="glass-panel p-4 text-center">
                             <p className="text-slate-400 text-sm">Общие запасы системы</p>
                             <p className="text-3xl font-bold text-brandPrimary mt-1">
@@ -97,6 +134,63 @@ export default function HostDashboard({ state, onStartGame }) {
                             <p className="text-3xl font-mono text-white mt-1">
                                 ${Object.values(state.nodes).reduce((acc, n) => acc + n.cost, 0).toFixed(2)}
                             </p>
+                        </div>
+                    </div>
+
+                    {/* Analytics Charts */}
+                    <div className="space-y-8">
+                        <div className="glass-panel p-4">
+                            <h3 className="text-lg font-semibold text-white mb-4">График Остатков (Склад)</h3>
+                            <div className="bg-slate-800 p-4 rounded-lg h-72">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                        <XAxis dataKey="week" stroke="#94a3b8" />
+                                        <YAxis stroke="#94a3b8" />
+                                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' }} />
+                                        <Legend />
+                                        <Line type="monotone" dataKey="Магазин" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                        <Line type="monotone" dataKey="Дистрибьютор" stroke="#10b981" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                        <Line type="monotone" dataKey="Завод" stroke="#f59e0b" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        <div className="glass-panel p-4">
+                            <h3 className="text-lg font-semibold text-white mb-4">Поступившие Заказы (Спрос)</h3>
+                            <div className="bg-slate-800 p-4 rounded-lg h-72">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={chartDataDemand} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                        <XAxis dataKey="week" stroke="#94a3b8" />
+                                        <YAxis stroke="#94a3b8" />
+                                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' }} />
+                                        <Legend />
+                                        <Line type="monotone" dataKey="Магазин" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                        <Line type="monotone" dataKey="Дистрибьютор" stroke="#10b981" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                        <Line type="monotone" dataKey="Завод" stroke="#f59e0b" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        <div className="glass-panel p-4">
+                            <h3 className="text-lg font-semibold text-white mb-4">Накопленные Затраты ($)</h3>
+                            <div className="bg-slate-800 p-4 rounded-lg h-72">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={chartDataCosts} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                        <XAxis dataKey="week" stroke="#94a3b8" />
+                                        <YAxis stroke="#94a3b8" />
+                                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' }} />
+                                        <Legend />
+                                        <Line type="monotone" dataKey="Магазин" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                        <Line type="monotone" dataKey="Дистрибьютор" stroke="#10b981" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                        <Line type="monotone" dataKey="Завод" stroke="#f59e0b" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
                         </div>
                     </div>
                 </div>

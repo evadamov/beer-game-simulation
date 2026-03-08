@@ -37,8 +37,8 @@ function App() {
     });
 
     // Auto-reconnect flow
-    const savedRoom = localStorage.getItem('beerGameRoom');
-    const savedRole = localStorage.getItem('beerGameRole');
+    const savedRoom = sessionStorage.getItem('beerGameRoom');
+    const savedRole = sessionStorage.getItem('beerGameRole');
     if (savedRoom && savedRole && !socket.connected) {
       handleJoinRoom(savedRoom, savedRole);
     }
@@ -51,30 +51,30 @@ function App() {
     };
   }, []);
 
-  const handleJoinRoom = (room, role) => {
+  const handleJoinRoom = (room, role, config = null) => {
     if (!socket.connected) {
       socket.connect();
     }
 
-    socket.emit('join_room', room, role, (response) => {
+    socket.emit('join_room', room, role, config, (response) => {
       if (response.success) {
         setRoomId(room);
         setCurrentRole(role);
         setGameState(response.state);
-        localStorage.setItem('beerGameRoom', room);
-        localStorage.setItem('beerGameRole', role);
+        sessionStorage.setItem('beerGameRoom', room);
+        sessionStorage.setItem('beerGameRole', role);
         setConnectionError('');
       } else {
         setConnectionError(response.message || 'Не удалось присоединиться. Роль уже занята активным игроком.');
-        localStorage.removeItem('beerGameRoom');
-        localStorage.removeItem('beerGameRole');
+        sessionStorage.removeItem('beerGameRoom');
+        sessionStorage.removeItem('beerGameRole');
       }
     });
   };
 
   const handleLeaveGame = () => {
-    localStorage.removeItem('beerGameRoom');
-    localStorage.removeItem('beerGameRole');
+    sessionStorage.removeItem('beerGameRoom');
+    sessionStorage.removeItem('beerGameRole');
     setGameState(null);
     setCurrentRole(null);
     setRoomId(null);

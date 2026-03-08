@@ -4,60 +4,66 @@ import { CONFIG, ROLES } from '../config.js';
  * Shared game logic used by the server to process rounds and state.
  */
 
-export const createInitialState = () => ({
-    week: 1,
-    status: 'waiting', // waiting, playing, finished
-    players: {
-        [ROLES.RETAILER]: null, // socketId
-        [ROLES.DISTRIBUTOR]: null,
-        [ROLES.FACTORY]: null,
-        [ROLES.HOST]: null
-    },
-    nodes: {
-        [ROLES.RETAILER]: createInitialNodeState(),
-        [ROLES.DISTRIBUTOR]: createInitialNodeState(),
-        [ROLES.FACTORY]: createInitialNodeState()
-    },
-    pipeline: {
-        // Items moving between nodes (delay = 2)
-        shipmentsToRetailer: [
-            { arrivalWeek: 2, amount: CONFIG.customer_order_range[0] },
-            { arrivalWeek: 3, amount: CONFIG.customer_order_range[0] }
-        ],
-        shipmentsToDistributor: [
-            { arrivalWeek: 2, amount: CONFIG.customer_order_range[0] },
-            { arrivalWeek: 3, amount: CONFIG.customer_order_range[0] }
-        ],
+export const createInitialState = (customConfig = {}) => {
+    // Merge provided config with defaults
+    const activeConfig = {
+        ...CONFIG,
+        ...customConfig
+    };
 
-        // Orders moving between nodes (delay = 2)
-        ordersToDistributor: [
-            { arrivalWeek: 2, amount: CONFIG.customer_order_range[0] },
-            { arrivalWeek: 3, amount: CONFIG.customer_order_range[0] }
-        ],
-        ordersToFactory: [
-            { arrivalWeek: 2, amount: CONFIG.customer_order_range[0] },
-            { arrivalWeek: 3, amount: CONFIG.customer_order_range[0] }
-        ],
+    const initialOrder = activeConfig.customer_order_range[0];
 
-        // Factory Production Queue (delay = 2)
-        productionQueue: [
-            { arrivalWeek: 2, amount: CONFIG.customer_order_range[0] },
-            { arrivalWeek: 3, amount: CONFIG.customer_order_range[0] }
-        ]
-    },
-    history: [] // Array of { week, node: { ... } } for analytics
-});
+    const createInitialNodeState = () => ({
+        inventory: activeConfig.initial_inventory,
+        backlog: 0,
+        cost: 0,
+        cumulativeHoldingCost: 0,
+        cumulativeBacklogCost: 0,
+        actionLog: [],
+        lastOrderReceived: initialOrder, // Visual only
+        lastShipmentReceived: initialOrder // Visual only
+    });
 
-const createInitialNodeState = () => ({
-    inventory: CONFIG.initial_inventory,
-    backlog: 0,
-    cost: 0,
-    cumulativeHoldingCost: 0,
-    cumulativeBacklogCost: 0,
-    actionLog: [],
-    lastOrderReceived: CONFIG.customer_order_range[0], // Visual only
-    lastShipmentReceived: CONFIG.customer_order_range[0] // Visual only
-});
+    // We build the pipeline dynamically based on shipping_delay and order_delay (plus production_delay)
+    // To ensure a smooth start, we pre-seed the pipeline with constant demand 'initialOrder'
+    // arriving at each week up to the delay period.
+
+    // Helper to seed queues
+    const seedQueue = (delay) => {
+        const queue = [];
+        for (let i = 1; i <= delay; i++) {
+            queue.push({ arrivalWeek: 1 + i, amount: initialOrder });
+        }
+        return queue;
+    };
+
+    return {
+        week: 1,
+        status: 'waiting',
+        config: activeConfig, // Store the active config in the state to use in processRound
+        players: {
+            [ROLES.RETAILER]: null,
+            [ROLES.DISTRIBUTOR]: null,
+            [ROLES.FACTORY]: null,
+            [ROLES.HOST]: null
+        },
+        nodes: {
+            [ROLES.RETAILER]: createInitialNodeState(),
+            [ROLES.DISTRIBUTOR]: createInitialNodeState(),
+            [ROLES.FACTORY]: createInitialNodeState()
+        },
+        pipeline: {
+            shipmentsToRetailer: seedQueue(activeConfig.shipping_delay),
+            shipmentsToDistributor: seedQueue(activeConfig.shipping_delay),
+            ordersToDistributor: seedQueue(activeConfig.order_delay),
+            ordersToFactory: seedQueue(activeConfig.order_delay),
+            productionQueue: seedQueue(activeConfig.production_delay)
+        },
+        history: []
+    };
+};
+
+
 
 export const getCustomerOrder = (week) => {
     // Simple logic: stable for 4 weeks, then doubles.
@@ -67,7 +73,8 @@ export const getCustomerOrder = (week) => {
 
 // Process end of week using pending actions from players
 export const processRound = (state, playerActions) => {
-    // playerActions = { Retailer: { ship: 5, order: 5 }, Distributor: {...}, Factory: {...} }
+    // Read the active config from the current state rather than the global CONFIG
+    const activeConfig = state.config || CONFIG;
 
     const customerOrder = getCustomerOrder(state.week);
 
@@ -79,7 +86,7 @@ export const processRound = (state, playerActions) => {
     state.nodes[ROLES.RETAILER].inventory -= retShipped;
     state.nodes[ROLES.RETAILER].backlog = retDemand - retShipped;
     // Retailer shipments leave system (go to customer)
-    state.pipeline.ordersToDistributor.push({ arrivalWeek: state.week + 1 + CONFIG.order_delay, amount: retAction.order });
+    state.pipeline.ordersToDistributor.push({ arrivalWeek: state.week + 1 + activeConfig.order_delay, amount: retAction.order });
 
     // DISTRIBUTOR
     const distAction = playerActions[ROLES.DISTRIBUTOR];
@@ -87,8 +94,8 @@ export const processRound = (state, playerActions) => {
     const distShipped = Math.min(distAction.ship, state.nodes[ROLES.DISTRIBUTOR].inventory, distDemandToUse);
     state.nodes[ROLES.DISTRIBUTOR].inventory -= distShipped;
     state.nodes[ROLES.DISTRIBUTOR].backlog = distDemandToUse - distShipped;
-    state.pipeline.shipmentsToRetailer.push({ arrivalWeek: state.week + 1 + CONFIG.shipping_delay, amount: distShipped });
-    state.pipeline.ordersToFactory.push({ arrivalWeek: state.week + 1 + CONFIG.order_delay, amount: distAction.order });
+    state.pipeline.shipmentsToRetailer.push({ arrivalWeek: state.week + 1 + activeConfig.shipping_delay, amount: distShipped });
+    state.pipeline.ordersToFactory.push({ arrivalWeek: state.week + 1 + activeConfig.order_delay, amount: distAction.order });
 
     // FACTORY
     const factAction = playerActions[ROLES.FACTORY];
@@ -96,15 +103,15 @@ export const processRound = (state, playerActions) => {
     const factShipped = Math.min(factAction.ship, state.nodes[ROLES.FACTORY].inventory, factDemandToUse);
     state.nodes[ROLES.FACTORY].inventory -= factShipped;
     state.nodes[ROLES.FACTORY].backlog = factDemandToUse - factShipped;
-    state.pipeline.shipmentsToDistributor.push({ arrivalWeek: state.week + 1 + CONFIG.shipping_delay, amount: factShipped });
+    state.pipeline.shipmentsToDistributor.push({ arrivalWeek: state.week + 1 + activeConfig.shipping_delay, amount: factShipped });
     // Factory ordering is production
-    state.pipeline.productionQueue.push({ arrivalWeek: state.week + 1 + CONFIG.production_delay, amount: factAction.order });
+    state.pipeline.productionQueue.push({ arrivalWeek: state.week + 1 + activeConfig.production_delay, amount: factAction.order });
 
     // 2. Calculate Costs & Log Actions for Current Week
     [ROLES.RETAILER, ROLES.DISTRIBUTOR, ROLES.FACTORY].forEach(role => {
         const node = state.nodes[role];
-        const holding = node.inventory * CONFIG.holding_cost;
-        const backlogCost = node.backlog * CONFIG.backlog_cost;
+        const holding = node.inventory * activeConfig.holding_cost;
+        const backlogCost = node.backlog * activeConfig.backlog_cost;
         node.cost += (holding + backlogCost);
         node.cumulativeHoldingCost += holding;
         node.cumulativeBacklogCost += backlogCost;

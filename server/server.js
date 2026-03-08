@@ -28,10 +28,10 @@ io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id}`);
 
     // Create or Join Room
-    socket.on('join_room', (roomId, role, callback) => {
+    socket.on('join_room', (roomId, role, config, callback) => {
         if (!rooms[roomId]) {
             rooms[roomId] = {
-                state: createInitialState(),
+                state: createInitialState(config), // Pass config on creation
                 turnActions: {}
             };
         }
