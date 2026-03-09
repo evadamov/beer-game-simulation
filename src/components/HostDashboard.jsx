@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { CONFIG, ROLES } from '../config.js';
+import InventoryVisualizer from './InventoryVisualizer';
 import {
     LineChart,
     Line,
@@ -134,11 +135,14 @@ export default function HostDashboard({ state, onStartGame }) {
 
                             {/* Node Stats */}
                             <div className="glass-panel p-5 space-y-4">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-slate-400">Склад (Inventory)</span>
-                                    <span className="text-2xl font-bold text-brandPrimary">{node.inventory}</span>
+                                <div>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="text-slate-400">Склад (Inventory)</span>
+                                        <span className="text-2xl font-bold text-brandPrimary">{node.inventory}</span>
+                                    </div>
+                                    <InventoryVisualizer count={node.inventory} />
                                 </div>
-                                <div className="flex justify-between items-center">
+                                <div className="flex justify-between items-center pt-2">
                                     <span className="text-slate-400">Текущие Заказы (Долг)</span>
                                     <span className="text-2xl font-bold text-accentDanger">{node.backlog}</span>
                                 </div>

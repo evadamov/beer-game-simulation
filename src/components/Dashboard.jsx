@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { CONFIG, ROLES } from '../config.js';
+import InventoryVisualizer from './InventoryVisualizer';
 
 export default function Dashboard({ role, state, onSubmitTurn }) {
     const [shipAmount, setShipAmount] = useState('');
@@ -68,7 +69,9 @@ export default function Dashboard({ role, state, onSubmitTurn }) {
             </div>
 
             {/* Status Cards */}
-            <StatCard title="Склад (Inventory)" value={nodeState.inventory} subtitle={`Потери за хранение: $${CONFIG.holding_cost}/шт`} color="text-brandPrimary" />
+            <StatCard title="Склад (Inventory)" value={nodeState.inventory} subtitle={`Потери за хранение: $${CONFIG.holding_cost}/шт`} color="text-brandPrimary">
+                <InventoryVisualizer count={nodeState.inventory} />
+            </StatCard>
             <StatCard title="Текущие Заказы (Долг)" value={nodeState.backlog} subtitle={`Штраф за неудовлетворенный спрос: $${CONFIG.backlog_cost}/шт`} color="text-accentDanger" />
             <StatCard title="Получено товара" value={nodeState.lastShipmentReceived} subtitle={`От поставщика на этой неделе`} color="text-accentSuccess" />
 
@@ -161,12 +164,15 @@ export default function Dashboard({ role, state, onSubmitTurn }) {
     );
 }
 
-function StatCard({ title, value, subtitle, color }) {
+function StatCard({ title, value, subtitle, color, children }) {
     return (
-        <div className="glass-panel p-6 flex flex-col justify-between">
-            <h3 className="text-sm font-medium text-slate-400">{title}</h3>
-            <p className={`text-4xl font-bold mt-2 ${color}`}>{value}</p>
-            {subtitle && <p className="text-xs text-slate-500 mt-2">{subtitle}</p>}
+        <div className="glass-panel p-6 flex flex-col justify-between h-full">
+            <div>
+                <h3 className="text-sm font-medium text-slate-400">{title}</h3>
+                <p className={`text-4xl font-bold mt-2 ${color}`}>{value}</p>
+                {children}
+            </div>
+            {subtitle && <p className="text-xs text-slate-500 mt-4 leading-snug">{subtitle}</p>}
         </div>
     );
 }
