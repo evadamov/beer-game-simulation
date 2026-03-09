@@ -45,6 +45,13 @@ export default function Dashboard({ role, state, onSubmitTurn }) {
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6 fade-in max-w-7xl mx-auto">
 
+            {/* Game Legend */}
+            <div className="col-span-full bg-slate-800/80 p-4 rounded-lg border border-slate-700 text-sm">
+                <h3 className="font-bold text-white mb-2 text-center border-b border-slate-600 pb-2">🎯 Цель Игры</h3>
+                <p className="text-slate-300 mb-3 text-center">Обеспечить бесперебойную поставку за минимальную стоимость.</p>
+                <p className="text-accentWarning/90 font-medium text-center bg-accentWarning/10 py-1 rounded">Игрокам запрещено общаться между собой, кроме как через интерфейс игры.</p>
+            </div>
+
             {/* Header Info */}
             <div className="col-span-full flex justify-between items-center glass-panel p-4">
                 <div>

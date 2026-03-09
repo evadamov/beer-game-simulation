@@ -10,9 +10,26 @@ import {
     Legend,
     ResponsiveContainer
 } from 'recharts';
-export default function HostDashboard({ state, onStartGame }) {
 
+export default function HostDashboard({ state, onStartGame }) {
     const isPlaying = state.status === 'playing';
+
+    // Host Configs
+    const [config, setConfig] = React.useState({
+        shipping_delay: 2,
+        production_delay: 2,
+        holding_cost: 1,
+        backlog_cost: 2,
+        initial_inventory: 12
+    });
+
+    const handleConfigChange = (e) => {
+        const { name, value } = e.target;
+        setConfig(prev => ({
+            ...prev,
+            [name]: Math.max(0, Number(value)) // Ensure non-negative numbers
+        }));
+    };
 
     // Prepare Analytics Data from History
     const chartData = useMemo(() => {
@@ -50,11 +67,42 @@ export default function HostDashboard({ state, onStartGame }) {
                     <p className="text-brandPrimary">Неделя {state.week} | Статус: {state.status === 'waiting' ? 'Ожидание игроков' : 'В игре'}</p>
                 </div>
                 {!isPlaying && (
-                    <button onClick={onStartGame} className="btn-primary py-3 px-8 text-lg shadow-lg">
+                    <button onClick={() => onStartGame(config)} className="btn-primary py-3 px-8 text-lg shadow-lg">
                         ▶ Начать игру
                     </button>
                 )}
             </div>
+
+            {!isPlaying && (
+                <div className="glass-panel p-6 rounded-none border-x border-panelBorder flex flex-col md:flex-row gap-6 items-center bg-slate-800/50">
+                    <div className="w-full md:w-1/3">
+                        <h2 className="text-xl font-bold text-white mb-2">Настройки Игры</h2>
+                        <p className="text-sm text-slate-400">Настройте параметры цепи поставок до начала партии. Заказы (информационный поток) передаются мгновенно (задержка = 0).</p>
+                    </div>
+                    <div className="w-full md:w-2/3 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                        <div>
+                            <label className="block text-xs font-medium text-slate-400 mb-1">Доставка (недель)</label>
+                            <input type="number" name="shipping_delay" value={config.shipping_delay} onChange={handleConfigChange} className="w-full input-field py-1" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-slate-400 mb-1">Производство (недель)</label>
+                            <input type="number" name="production_delay" value={config.production_delay} onChange={handleConfigChange} className="w-full input-field py-1" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-slate-400 mb-1">Нач. запасы (шт)</label>
+                            <input type="number" name="initial_inventory" value={config.initial_inventory} onChange={handleConfigChange} className="w-full input-field py-1" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-slate-400 mb-1">Хранение ($)</label>
+                            <input type="number" name="holding_cost" value={config.holding_cost} onChange={handleConfigChange} step="0.5" className="w-full input-field py-1" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-slate-400 mb-1">Штраф ($)</label>
+                            <input type="number" name="backlog_cost" value={config.backlog_cost} onChange={handleConfigChange} step="0.5" className="w-full input-field py-1" />
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6 bg-panelBg rounded-b-xl border border-t-0 border-panelBorder shadow-xl flex-grow">
 

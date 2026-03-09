@@ -55,8 +55,6 @@ export const createInitialState = (customConfig = {}) => {
         pipeline: {
             shipmentsToRetailer: seedQueue(activeConfig.shipping_delay),
             shipmentsToDistributor: seedQueue(activeConfig.shipping_delay),
-            ordersToDistributor: seedQueue(activeConfig.order_delay),
-            ordersToFactory: seedQueue(activeConfig.order_delay),
             productionQueue: seedQueue(activeConfig.production_delay)
         },
         history: []
@@ -85,8 +83,8 @@ export const processRound = (state, playerActions) => {
     const retShipped = Math.min(retAction.ship, state.nodes[ROLES.RETAILER].inventory, retDemand); // Can't ship more than inventory or demand
     state.nodes[ROLES.RETAILER].inventory -= retShipped;
     state.nodes[ROLES.RETAILER].backlog = retDemand - retShipped;
-    // Retailer shipments leave system (go to customer)
-    state.pipeline.ordersToDistributor.push({ arrivalWeek: state.week + 1 + activeConfig.order_delay, amount: retAction.order });
+    // Retailer orders go instantly to Distributor for next week
+    const incomingOrderToDistributor = retAction.order;
 
     // DISTRIBUTOR
     const distAction = playerActions[ROLES.DISTRIBUTOR];
@@ -95,7 +93,8 @@ export const processRound = (state, playerActions) => {
     state.nodes[ROLES.DISTRIBUTOR].inventory -= distShipped;
     state.nodes[ROLES.DISTRIBUTOR].backlog = distDemandToUse - distShipped;
     state.pipeline.shipmentsToRetailer.push({ arrivalWeek: state.week + 1 + activeConfig.shipping_delay, amount: distShipped });
-    state.pipeline.ordersToFactory.push({ arrivalWeek: state.week + 1 + activeConfig.order_delay, amount: distAction.order });
+    // Distributor orders go instantly to Factory for next week
+    const incomingOrderToFactory = distAction.order;
 
     // FACTORY
     const factAction = playerActions[ROLES.FACTORY];
@@ -143,9 +142,6 @@ export const processRound = (state, playerActions) => {
     const arrivingAtRetailer = getArriving(state.pipeline.shipmentsToRetailer, nextWeek);
     const arrivingAtDistributor = getArriving(state.pipeline.shipmentsToDistributor, nextWeek);
     const arrivingAtFactory = getArriving(state.pipeline.productionQueue, nextWeek); // Finished brewing
-
-    const incomingOrderToDistributor = getArriving(state.pipeline.ordersToDistributor, nextWeek);
-    const incomingOrderToFactory = getArriving(state.pipeline.ordersToFactory, nextWeek);
 
     // Update Inventory with Arrivals
     state.nodes[ROLES.RETAILER].inventory += arrivingAtRetailer;

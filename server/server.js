@@ -58,10 +58,14 @@ io.on('connection', (socket) => {
         if (callback) callback({ success: true, state: room.state });
     });
 
-    socket.on('start_game', (roomId) => {
+    socket.on('start_game', (roomId, config) => {
         const room = rooms[roomId];
         if (room && room.state.status === 'waiting') {
+            const preservedPlayers = room.state.players;
+            room.state = createInitialState(config);
+            room.state.players = preservedPlayers;
             room.state.status = 'playing';
+
             io.to(roomId).emit('state_update', room.state);
         }
     });

@@ -80,8 +80,8 @@ function App() {
     setRoomId(null);
   };
 
-  const handleStartGame = () => {
-    socket.emit('start_game', roomId);
+  const handleStartGame = (config) => {
+    socket.emit('start_game', roomId, config);
   };
 
   const handleSubmitTurn = (action) => {
